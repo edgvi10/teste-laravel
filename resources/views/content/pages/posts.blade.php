@@ -3,215 +3,303 @@
 @section('title', 'POSTS - Pages')
 
 @section('page-style')
-<!-- Page -->
-<!-- <link rel="stylesheet" href="{{asset('assets/vendor/css/pages/page-misc.css')}}"> -->
+    <!-- Page -->
+    <!-- <link rel="stylesheet" href="{{ asset('assets/vendor/css/pages/page-misc.css') }}"> -->
 @endsection
 
 @section('page-script')
-<script >
-document.addEventListener('DOMContentLoaded', function (e) {
-  (function () {
-    var users = [];
-    var posts = [];
+    <script>
+        document.addEventListener('DOMContentLoaded', function(e) {
+            (function() {
+                const base_url = "https://gorest.co.in/public/v2";
 
-    var fields = {
-      id: { label: "ID", type: "input", readonly: true, required: true, placeholder: "autoincrement" },
-      user_id: { label: "User ID", type: "input", readonly: true, required: true, placeholder: "autoincrement" },
-      title: { label: "Title", size: "col-md-8", type: "input", required: false, placeholder: "Title" },
-      body: { label: "Body", size: "col-md-12", type: "textarea", required: false, placeholder: "Body" },
-    }
+                var user_id = "";
 
-    const form_field_values = {};
+                // TOAST
+                const toast_element = document.querySelector(".loading-toast");
+                const loading_toast = new bootstrap.Toast(toast_element);
 
-    const users_select = document.querySelector(".users_select");
-    const refresh_button = document.querySelector("#load-posts");
-    const form = document.querySelector("#post_form");
-    const modal_html = document.querySelector(".post-form-modal");
-    const modal = new bootstrap.Modal(modal_html);
+                // modal
+                const post_form_modal_element = document.querySelector(".post-form-modal");
+                const post_form_modal = new bootstrap.Modal(post_form_modal_element, {
+                    backdrop: "static"
+                });
 
+                post_form_modal_element.addEventListener('show.bs.modal', function(event) {
+                    if (form_field_values.id) post_form_modal_element.querySelector(".modal-title").textContent = "Edit Post";
+                    else post_form_modal_element.querySelector(".modal-title").textContent = "New Post";
+                    FormBuilder();
+                });
 
+                post_form_modal_element.addEventListener('hidden.bs.modal', function(event) {
+                    form_field_values.id = "";
+                    form_field_values.user_id = "";
+                    form_field_values.title = "";
+                    form_field_values.body = "";
+                    FormBuilder();
+                });
 
-  modal_html.addEventListener('hidden.bs.modal', function (event) {
-    form_field_values.id = "";
-    form_field_values.user_id = "";
-    form_field_values.title = "";
-    form_field_values.body = "";
-    FormBuilder();
-  })
+                const post_form_element = document.querySelector("#post-form");
+                post_form_element.addEventListener("submit", function(event) {
+                    event.preventDefault();
+                    const form_data = new FormData(event.target);
+                    const data = {};
+                    for (const [key, value] of form_data.entries()) {
+                        data[key] = value;
+                    }
 
-    var user_id = "";
+                    toast_element.querySelector(".toast-body").textContent = "Saving...";
+                    loading_toast.show();
 
-    const base_url = "https://gorest.co.in/public/v2";
+                    document.querySelector(".post-form-modal .btn-save").setAttribute("disabled", true);
 
-    function FormBuilder(){
-      form.innerHTML = "";
-    for (const key in fields) {
-      const field = fields[key];
-      const div = document.createElement("div");
-      div.classList.add(field.size ?? "col-md-4");
-      const label = document.createElement("label");
-      label.textContent = field.label;
-      label.setAttribute("for", key);
-      div.appendChild(label);
-      const input = document.createElement(field.type);
-      input.classList.add("form-control");
-      input.id = key;
-      input.name = key;
-      input.placeholder = field.placeholder;
+                    setTimeout(() => {
+                      loading_toast.hide();
+                      post_form_modal.hide();
+                      document.querySelector(".post-form-modal .btn-save").removeAttribute("disabled");
+                    }, 5000);
+                });
 
-      if(form_field_values[key]) {
-        input.value = form_field_values[key];
-      }
+                var fields = {
+                    id: {
+                        label: "ID",
+                        type: "input",
+                        readonly: true,
+                        required: true,
+                        placeholder: "autoincrement"
+                    },
+                    user_id: {
+                        label: "User ID",
+                        type: "select",
+                        size: "col-md-6",
+                        required: true,
+                        placeholder: "Autoincrement",
+                        options: []
+                    },
+                    title: {
+                        label: "Title",
+                        size: "col-md-8",
+                        type: "input",
+                        required: false,
+                        placeholder: "Title"
+                    },
+                    body: {
+                        label: "Body",
+                        size: "col-md-12",
+                        type: "textarea",
+                        required: false,
+                        placeholder: "Body"
+                    },
+                }
+                const form_field_values = {};
 
-      if (field.type === "textarea") {
-        input.setAttribute("rows", 3);
-      }
+                const users_select = document.querySelector(".users_select");
 
-      if (field.readonly) {
-        input.setAttribute("readonly", true);
-      }
-      if (field.required) {
-        input.setAttribute("required", true);
-      }
+                function FormBuilder() {
+                    const form = post_form_element.querySelector("fieldset");
+                    form.innerHTML = "";
 
-      div.appendChild(input);
-      form.appendChild(div);
-    }
-  }
+                    for (const key in fields) {
+                        const field = fields[key];
+                        const div = document.createElement("div");
+                        div.classList.add(field.size ?? "col-md-3");
+                        if (field.label) {
+                            const label = document.createElement("label");
+                            label.textContent = field.label;
+                            label.setAttribute("for", key);
+                            div.appendChild(label);
+                        }
+                        const input = document.createElement(field.type);
+                        input.classList.add(field.type === "select" ? "form-select" : "form-control");
 
-  FormBuilder();
+                        input.id = key;
+                        input.name = key;
+                        input.placeholder = field.placeholder;
 
-    async function getUsers(filter, order) {
-      try {
-        const request = await fetch(`${base_url}/users`);
-        const response = await request.json();
+                        if (form_field_values[key]) input.value = form_field_values[key];
 
-        for (const user of response) {
-          const option = document.createElement("option");
-          option.value = user.id;
-          option.textContent = user.name;
-          users_select.appendChild(option);
-        }
-      } catch (error) {
-        console.log(error);
-      }
-    }
+                        if (field.options) {
+                            const option_default = document.createElement("option");
+                            option_default.value = "";
+                            option_default.textContent = "Select";
 
-    getUsers();
-    users_select.addEventListener("change", function (event) {
-      form_field_values.user_id = event.target.value;
-      FormBuilder();
-      getPosts({ user_id: event.target.value });
-    });
+                            input.appendChild(option_default);
 
-    if (refresh_button) {
-      refresh_button.addEventListener("click", getPosts);
-    }
+                            for (const option of field.options) {
+                                const option_html = document.createElement("option");
+                                option_html.value = option.value;
+                                option_html.textContent = option.label;
+                                if (form_field_values[key] == option.value) option_html.setAttribute("selected", true);
+                                input.appendChild(option_html);
+                            }
+                        }
 
-    const carregando = document.querySelector(".carregando");
-    async function getPosts(filter = {}, order) {
-      try {
+                        if (field.type === "textarea") input.setAttribute("rows", 6);
+                        if (field.readonly) input.setAttribute("readonly", true);
+                        if (field.required) input.setAttribute("required", true);
 
-        carregando.classList.remove("d-none");
-        console.log("Here we go");
-        const url = (filter.user_id) ? `${base_url}/users/${filter.user_id}/posts` : `${base_url}/posts`;
-        const request = await fetch(url);
-        const response = await request.json();
+                        div.appendChild(input);
+                        form.appendChild(div);
+                    }
+                }
 
-        const thead = document.querySelector("thead tr");
-        const tbody = document.querySelector("tbody");
+                async function getUsers(filter, order) {
+                    try {
+                        const request = await fetch(`${base_url}/users`);
+                        const response = await request.json();
 
-        console.log(thead, tbody)
-        thead.innerHTML = "";
-        tbody.innerHTML = "";
+                        let users = [];
+                        for (const user of response) {
+                            users.push({
+                                value: user.id,
+                                label: user.name
+                            });
+                            const option = document.createElement("option");
 
-        if (response.length === 0) {
-          const tr = document.createElement("tr");
-          const td = document.createElement("td");
-          td.textContent = "Nenhum post encontrado";
-          tr.appendChild(td);
-          tbody.appendChild(tr);
-        } else {
+                            option.value = user.id;
+                            option.textContent = user.name;
 
-          const json_header = Object.keys(response[0]);
-          for (const key of json_header) {
-            const th = document.createElement("th");
-            th.textContent = key;
-            thead.appendChild(th);
-          }
+                            users_select.appendChild(option);
+                        }
 
-          for (const row of response) {
-            const tr = document.createElement("tr");
-            for (const key of json_header) {
-              const td = document.createElement("td");
-              td.textContent = row[key];
-              td.addEventListener("click", function (event) {
-                form_field_values.id = row.id;
-                form_field_values.user_id = row.user_id;
-                form_field_values.title = row.title;
-                form_field_values.body = row.body;
-                FormBuilder();
-                modal.show();
-              });
-              tr.appendChild(td);
-            }
-            tbody.appendChild(tr);
-          }
-        }
+                        fields.user_id.options = users;
 
-      } catch (error) {
-        console.log(error);
-      } finally {
+                        FormBuilder();
+                    } catch (error) {
+                        console.log(error);
+                    }
+                }
 
-        carregando.classList.add("d-none");
+                getUsers();
+                users_select.addEventListener("change", function(event) {
+                    user_id = event.target.value;
+                    form_field_values.user_id = event.target.value;
+                    FormBuilder();
+                    getPosts({
+                        user_id: event.target.value
+                    });
+                });
 
-      }
-    }
-    getPosts();
+                async function getPosts(filter = {}, order) {
+                  toast_element.querySelector(".toast-body").textContent = "Loading...";
+                  if(loading_toast) loading_toast.show();
+                    try {
 
-  })();
-});
+                        const url = (filter.user_id) ? `${base_url}/users/${filter.user_id}/posts` : `${base_url}/posts`;
+                        const request = await fetch(url);
+                        const response = await request.json();
 
-</script>
+                        const thead = document.querySelector("thead tr");
+                        const tbody = document.querySelector("tbody");
+
+                        thead.innerHTML = "";
+                        tbody.innerHTML = "";
+
+                        if (response.length === 0) {
+                            const tr = document.createElement("tr");
+                            const td = document.createElement("td");
+                            td.textContent = "Nenhum post encontrado";
+                            tr.appendChild(td);
+                            tbody.appendChild(tr);
+                        } else {
+
+                            const json_header = Object.keys(response[0]);
+                            for (const key of json_header) {
+                                const th = document.createElement("th");
+                                th.textContent = key;
+                                thead.appendChild(th);
+                            }
+
+                            for (const row of response) {
+                                const tr = document.createElement("tr");
+                                for (const key of json_header) {
+                                    const td = document.createElement("td");
+                                    td.textContent = row[key];
+                                    td.addEventListener("click", function(event) {
+                                        form_field_values.id = row.id;
+                                        form_field_values.user_id = row.user_id;
+                                        form_field_values.title = row.title;
+                                        form_field_values.body = row.body;
+                                        FormBuilder();
+
+                                        if(post_form_modal) post_form_modal.show();
+                                    });
+                                    tr.appendChild(td);
+                                }
+                                tbody.appendChild(tr);
+                            }
+                        }
+
+                    } catch (error) {
+                        console.log(error);
+                    } finally {
+                      if(loading_toast) loading_toast.hide();
+                    }
+                }
+
+                getPosts();
+            })();
+        });
+    </script>
 @endsection
 
+
 @section('content')
-<!--Under Maintenance -->
-<div class="container-xxl container-p-y">
-  <div class="misc-wrapper">
-    <h2 class="mb-2 mx-2">POSTS!</h2>
+<style>
+  *::-webkit-scrollbar {
+    width: 0.5em;
+    height: 0.5em;
+}
+*::-webkit-scrollbar-track {
+    background-color: #f1f1f1;
+}
+*::-webkit-scrollbar-thumb {
+    background-color: #888;
+}
+*::-webkit-scrollbar-thumb:hover {
+    background-color: #555;
+}
+</style>
+    <!--Under Maintenance -->
+    <div class="container-xxl container-p-y">
 
-    <div class="carregando d-none">Carregando...</div>
-    <div class="d-flex flex-row gap-2 align-items-center">
-
-      <select name="users" id="users" class="users_select form-select">
-        <option value="">Select user</option>
-      </select>
-      <!-- <button type="button" id="load-posts" class="btn btn-primary tx-nowrap">Carregar Posts</button> -->
-      <button type="button" id="load-posts" class="btn btn-primary nowrap" data-bs-toggle="modal" data-bs-target=".post-form-modal">NOVO</button>
+            <div class="d-flex flex-row gap-2 align-items-center">
+                <select name="users" id="users" class="users_select form-select">
+                    <option value="">Select user</option>
+                </select>
+                <!-- <button type="button" id="load-posts" class="btn btn-primary tx-nowrap">Carregar Posts</button> -->
+                <button type="button" id="load-posts" class="btn btn-primary nowrap" data-bs-toggle="modal"
+                    data-bs-target=".post-form-modal">NOVO</button>
+            </div>
+            <table class="table table-sm rounded border table-hover bg-white my-3">
+                <thead>
+                    <tr></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
     </div>
-    <table class="table table-border">
-      <thead>
-        <tr></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-</div>
 
-<section class="post-form-modal modal fade">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Cadastrar POST</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
+    <section class="post-form-modal modal fade">
+        <div class="modal-dialog modal-dialog-centered">
+            <form id="post-form" class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Cadastrar POST</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
 
-      <div class="modal-body">
-        <form id="post_form" class="row g-3"></form>
-      </div>
+                <div class="modal-body">
+                    <fieldset class="row g-3">
+
+                    </fieldset>
+                </div>
+                <footer class="modal-footer">
+                    <button type="submit" class="btn btn-primary btn-save" id="save-post">Salvar</button>
+                </footer>
+            </form>
+        </div>
+    </section>
+    <div class="toast fade bg-primary position-absolute top-0 end-0 m-2 loading-toast" role="alert" aria-live="assertive" aria-atomic="true" style="z-index:9999">
+      <div class="toast-body"></div>
     </div>
-  </div>
-</section>
-<!-- /Under Maintenance -->
+    <!-- /Under Maintenance -->
 @endsection
