@@ -26,6 +26,18 @@ document.addEventListener('DOMContentLoaded', function (e) {
     const users_select = document.querySelector(".users_select");
     const refresh_button = document.querySelector("#load-posts");
     const form = document.querySelector("#post_form");
+    const modal_html = document.querySelector(".post-form-modal");
+    const modal = new bootstrap.Modal(modal_html);
+
+
+
+  modal_html.addEventListener('hidden.bs.modal', function (event) {
+    form_field_values.id = "";
+    form_field_values.user_id = "";
+    form_field_values.title = "";
+    form_field_values.body = "";
+    FormBuilder();
+  })
 
     var user_id = "";
 
@@ -66,6 +78,7 @@ document.addEventListener('DOMContentLoaded', function (e) {
       form.appendChild(div);
     }
   }
+
   FormBuilder();
 
     async function getUsers(filter, order) {
@@ -132,6 +145,14 @@ document.addEventListener('DOMContentLoaded', function (e) {
             for (const key of json_header) {
               const td = document.createElement("td");
               td.textContent = row[key];
+              td.addEventListener("click", function (event) {
+                form_field_values.id = row.id;
+                form_field_values.user_id = row.user_id;
+                form_field_values.title = row.title;
+                form_field_values.body = row.body;
+                FormBuilder();
+                modal.show();
+              });
               tr.appendChild(td);
             }
             tbody.appendChild(tr);
